@@ -21,6 +21,9 @@ static BeginScene oBeginScene = NULL;
 typedef long(__stdcall* Present)(LPDIRECT3DDEVICE9, const RECT*, const RECT*, HWND, const RGNDATA*);
 static Present oPresent = NULL;
 
+typedef HRESULT(__stdcall* Clear)(LPDIRECT3DDEVICE9, DWORD, const D3DRECT*, DWORD, D3DCOLOR, float, DWORD);
+static Clear oClear = NULL;
+
 typedef void(__thiscall* CommandEvent)(void*, unsigned char, unsigned short, unsigned char);
 static CommandEvent oCommandEvent;
 

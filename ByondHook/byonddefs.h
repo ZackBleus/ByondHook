@@ -88,3 +88,6 @@ struct MapIcon
 	
 };
 */
+
+
+// byondwin.GraphicsDriver::'vftable'+3E4 : worldviewproj

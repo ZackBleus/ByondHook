@@ -4,8 +4,9 @@
 LPDIRECT3DTEXTURE9 tex;
 void InitVolatileResources(LPDIRECT3DDEVICE9 pDevice)
 {
-	init_light(pDevice);
-
+	//init_light(pDevice);
+	
+	pDevice->SetFVF(CUSTOMFVF);
 	pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
 	pDevice->SetRenderState(D3DRS_LIGHTING, TRUE);
 	pDevice->SetRenderState(D3DRS_ZENABLE, TRUE);

@@ -16,6 +16,7 @@ DWORD gameBaseAddress;
 HANDLE processHandle = NULL;
 
 
+IDirect3D9* ppD3D9;
 
 // include the Direct3D Library file
 #pragma comment (lib, "d3d9.lib")
@@ -74,18 +75,33 @@ int startThread()
 
 long __stdcall hkReset(LPDIRECT3DDEVICE9 pDevice, D3DPRESENT_PARAMETERS* pPresentationParameters)
 {
-	//pPresentationParameters->BackBufferWidth = 0;
-	//pPresentationParameters->BackBufferHeight = 0;
-	//pPresentationParameters->BackBufferCount = 1;
-	pPresentationParameters->AutoDepthStencilFormat = D3DFMT_D16;
-	pPresentationParameters->EnableAutoDepthStencil = true;
-	ImGui_ImplDX9_InvalidateDeviceObjects();
-	ReleaseVolatileResources(pDevice);
-	long result = oReset(pDevice, pPresentationParameters);
-	ImGui_ImplDX9_CreateDeviceObjects();
+	std::cout << "Reset" << std::endl;
+
+	//ZeroMemory(pPresentationParameters, sizeof(*pPresentationParameters));
+
+	//ZeroMemory(pPresentationParameters, sizeof(D3DPRESENT_PARAMETERS));
+	pPresentationParameters->PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+	pPresentationParameters->Windowed = TRUE;
+	pPresentationParameters->SwapEffect = D3DSWAPEFFECT_DISCARD;
+	pPresentationParameters->EnableAutoDepthStencil = TRUE;
+	pPresentationParameters->AutoDepthStencilFormat = D3DFMT_D24S8;
+
+
 	InitVolatileResources(pDevice);
 
+	ImGui_ImplDX9_InvalidateDeviceObjects();
+	//ReleaseVolatileResources(pDevice);
+	long result = oReset(pDevice, pPresentationParameters);
+	ImGui_ImplDX9_CreateDeviceObjects();
+
 	return result;
+}
+
+HRESULT __stdcall hkClear(LPDIRECT3DDEVICE9 pDevice, DWORD count, const D3DRECT* pRects, DWORD Flags, D3DCOLOR Color, float Z, DWORD Stencil)
+{
+	//pDevice->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 1);
+	//pDevice->Clear(0, NULL, D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 1);
+	return oClear(pDevice, count, pRects, Flags, Color, Z, Stencil);
 }
 
 bool initialized = false;
@@ -105,8 +121,19 @@ long __stdcall hkPresent(LPDIRECT3DDEVICE9 pDevice, const RECT* pSourceRect, con
 {
 	if (!initialized)
 	{
+		//IDirect3D9* pD3D = Direct3DCreate9(D3D_SDK_VERSION);
+
+		//if (!pD3D)
+		//	return false;
+
+		//dummyDeviceCreated = pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, d3dpp.hDeviceWindow, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &pDummyDevice);
+
+		
+		
+
 		D3DDEVICE_CREATION_PARAMETERS params;
 		pDevice->GetCreationParameters(&params);
+		params.BehaviorFlags |= D3DCREATE_HARDWARE_VERTEXPROCESSING;
 
 		context = ImGui::CreateContext();	// Setting up some ImGui stuff.
 
@@ -122,7 +149,6 @@ long __stdcall hkPresent(LPDIRECT3DDEVICE9 pDevice, const RECT* pSourceRect, con
 
 		bobombMesh = Mesh(pDevice);
 
-
 		OBJStruct bbb = GetFileInResources("Bob-omb Battlefield.obj");		// Load mesh from obj stored in .rsc file.
 		OBJStruct bbbmat = GetFileInResources("Bob-omb Battlefield.mtl");	// Load material from the .rsc file.
 
@@ -132,17 +158,24 @@ long __stdcall hkPresent(LPDIRECT3DDEVICE9 pDevice, const RECT* pSourceRect, con
 
 		GetClientRect(params.hFocusWindow, &windowSize);
 
+		IDirect3DSwapChain9* pSwap;
+		D3DPRESENT_PARAMETERS pParams;
+
+		pDevice->GetSwapChain(0, &pSwap);
+
+		pSwap->GetPresentParameters(&pParams);
+
+		oReset(pDevice, &pParams);
+
+		//pDevice->CreateRenderTarget(windowSize.right, windowSize.bottom, D3DFMT_X8R8G8B8, D3DMULTISAMPLE_NONE, 0, FALSE, ppSurface, NULL);
 		initialized = true;
 	}
 
-	pDevice->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(0x00, 0x00, 0x00), 1.0f, 0);
-
-	pDevice->BeginScene();
-	ImGuiContext* tmpContext = ImGui::GetCurrentContext();
-	ImGui::SetCurrentContext(context);
+	//pDevice->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 1);
+	//pDevice->Clear(0, NULL, D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 1);
 
 
-	DWORD dwReturnAddress;
+	DWORD dwReturnAddress = 0;
 
 	static DWORD dwAllowedReturn = 0;
 
@@ -154,8 +187,14 @@ long __stdcall hkPresent(LPDIRECT3DDEVICE9 pDevice, const RECT* pSourceRect, con
 		pop eax
 	}
 
+	pDevice->BeginScene();
+	//->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 1);
+	pDevice->Clear(0, NULL, D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 1);
+
+	ImGuiContext* tmpContext = ImGui::GetCurrentContext();
+	ImGui::SetCurrentContext(context);
+
 	// select which vertex format we are using
-	pDevice->SetFVF(CUSTOMFVF);
 
 
 	D3DXMATRIX matView;										// the view transform matrix
@@ -204,22 +243,49 @@ long __stdcall hkPresent(LPDIRECT3DDEVICE9 pDevice, const RECT* pSourceRect, con
 		ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 
 		dwAllowedReturn = dwReturnAddress;
+
+		ImGui::SetCurrentContext(tmpContext);
+		
+
 	}
 
-	ImGui::SetCurrentContext(tmpContext);
 	pDevice->EndScene(); // Call hooked EndScene function.
 
-	return oPresent(pDevice, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+	//pDevice->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+	long result = oPresent(pDevice, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+
+	//result = pDevice->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+
+	//pRenderTarget->Release();
+	return result;
 	//return oPresent(pDevice, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 }
 
 long __stdcall hkBeginScene(LPDIRECT3DDEVICE9 pDevice)
 {
+	//pDevice->SetFVF(CUSTOMFVF);
+	/*
+	pDevice->SetVertexShader(0);
+	pDevice->SetPixelShader(0);
+	pDevice->SetFVF(CUSTOMFVF); //pDevice->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+	pDevice->SetRenderState(D3DRS_ZENABLE, false);
+	pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+	pDevice->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+	pDevice->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
+	pDevice->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+	pDevice->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
+	pDevice->SetRenderState(D3DRS_ZENABLE, true);
+	*/
+	
+	InitVolatileResources(pDevice);
 	return oBeginScene(pDevice);
 }
 
 long __stdcall hkEndScene(LPDIRECT3DDEVICE9 pDevice)
 {
+	//pDevice->Clear(NULL, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, D3DCOLOR_ARGB(0, 128, 128, 128), 1.0f, 0);
+	InitVolatileResources(pDevice);
+
 	return oEndScene(pDevice);
 }
 
@@ -297,6 +363,12 @@ void init()
 	{
 		kiero::bind(16, (void**)&oReset, hkReset);
 		kiero::bind(17, (void**)&oPresent, hkPresent);
+
+		kiero::bind(41, (void**)&oBeginScene, hkBeginScene);
+		kiero::bind(42, (void**)&oEndScene, hkEndScene);
+		kiero::bind(43, (void**)&oClear, hkClear);
+
+		std::cout << *hkPresent << std::endl;
 	}
 	else
 	{
@@ -309,7 +381,6 @@ void init()
 	if (MH_Initialize() != MH_OK) // Should be initialized already by Kiero, but if that somehow fails we'll know.
 	{
 		std::cout << "MH initialization failed." << std::endl;
-		return;
 	}
 
 	// Ideally this would be done with an AoB scan rather than offsets but y'know.
@@ -395,9 +466,6 @@ void init()
 
 
 	//pAddVPrintf = (_AddVPrintf)DetourFunction((PBYTE)(_AddVPrintf)(base + 0x1F20D0), (PBYTE)AddVPrintf);
-
-	kiero::bind(41, (void**)&oBeginScene, hkEndScene);
-	kiero::bind(42, (void**)&oEndScene, hkBeginScene);
 }
 
 // ImGui code here.
